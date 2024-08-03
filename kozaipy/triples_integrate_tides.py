@@ -222,6 +222,8 @@ def threebody_ode_vf_tides(t,y,\
 
         if (extra_forces_dissipative):
 
+
+
             if (tv0 is not None):
                 timelag0 = 1.5 / tv0 * R0 * R0 * R0 / triples.constants.G / m0 * (1 + 2 * k2_0)**2/ k2_0
             if (tv1 is not None):
@@ -230,8 +232,6 @@ def threebody_ode_vf_tides(t,y,\
             #tf0 = tv0/9 / size_ratio0_eighth * m0**2 / ((m0 + m1)*m1) / (1 + 2 * k2_0)**2 
             #tf1 = tv1/9 / size_ratio1_eighth * m1**2 / ((m0 + m1)*m0) / (1 + 2 * k2_1)**2 
             
-            #timelag0 = 1.5 / tv0 * R0 * R0 * R0 / triples.constants.G / m0 * (1 + 2 * k2_0)**2/ k2_0
-            #timelag1 = 1.5 / tv1 * R1 * R1 * R1 / triples.constants.G / m1 * (1 + 2 * k2_1)**2/ k2_1
 
             #print(timelag0,tv0,timelag1,tv1)
             
