@@ -117,14 +117,15 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
                 return 2 * np.pi ** 2 * Q ** 2 * K ** 2 * (sigma / epsilon)
 
             def get_omega_sigma_epsilon_Q(mode_index, Omega_bar, bar):
+                #print(Omega_bar)
                 if mode_index == 0:
-                    return (1.22 - Omega_bar) * bar, (1.22 + Omega_bar) * bar, 1.22, 0.56
+                    return (1.22 - Omega_bar) * bar, (1.22 + Omega_bar) * bar, 1.22 * bar, 0.56
                 if mode_index == 1:
                     return 0.56 * Omega_bar * bar, 2.56 * Omega_bar * bar, 0.28 * Omega_bar * bar, 0.015 * Omega_bar**2
                 if mode_index == 2:
                     return -1.1 * Omega_bar * bar, 0.9 * Omega_bar * bar, -0.55 * Omega_bar * bar, 0.01 * Omega_bar**2
                 if mode_index == 3:
-                    return (1.46 - Omega_bar) * bar, (1.46 + Omega_bar) * bar, 1.46, 0.49
+                    return (1.46 - Omega_bar) * bar, (1.46 + Omega_bar) * bar, 1.46 * bar, 0.49
 
             def get_map_params(e, r_p, M, M_p, R, Omega, mode_index):
                 r_tide = R * (M / M_p) ** (1 / 3)
@@ -139,15 +140,17 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
 
                 omega, sigma, epsilon, Q = get_omega_sigma_epsilon_Q(mode_index, Omega_bar, bar)
 
-                z = 2 ** (1 / 2) * omega / Omega_peri
+                #print(sigma, Omega_peri, sigma / Omega_peri)
+
+                z = 2 ** (1 / 2) * sigma / Omega_peri
                 T = get_T(Q=Q, z=z, eta=eta, sigma=sigma, epsilon=epsilon)
 
-                dP = (6 * np.pi * (omega / Omega_peri) / (1 - e) ** (5 / 2)) * (M_p / M) ** (2 / 3) * eta ** (-5) * T
-                P = 2 * np.pi * (omega / Omega_peri) / (1 - e) ** (3 / 2)
+                dP = (6 * np.pi * (sigma / Omega_peri) / (1 - e) ** (5 / 2)) * (M_p / M) ** (2 / 3) * eta ** (-5) * T
+                P = 2 * np.pi * (sigma / Omega_peri) / (1 - e) ** (3 / 2)
 
                 dE = kp.constants.G * M**2 * R**5 * T / r_p**6
 
-                return P, dP, dE
+                return P, dP, dE, sigma
 
             def callback(ts, y, map_params):
 
@@ -158,26 +161,27 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
                 l_squared = y[-1][3] ** 2 + y[-1][4] ** 2 + y[-1][5] ** 2
                 a = l_squared / (kp.constants.G * (m0 + m1) * (1 - e_squared))
                 P = (4 * np.pi ** 2 * a ** 3 / (kp.constants.G * (m0 + m1))) ** (1 / 2)
-                Omega = sqrt(y[-1][6]**2 + y[-1][7]**2 + y[-1][8]**2)
+                Omega = y[-1][-1]
 
-                for i in [3]:
+                for i in range(4):
 
                     # new map params
-                    P_hat_0, dP_hat_1, dE_inf = get_map_params(e=e, r_p=a * (1 - e), M=m0, M_p=m1, R=radius1, Omega=Omega, mode_index=i)
-                    da = ((2 / 3) * dP_hat_1 / P_hat_0) ** (1 / 2)
+                    P_hat_0, dP_hat_1, dE_inf, sigma = get_map_params(e=e, r_p=a * (1 - e), M=m0, M_p=m1, R=radius1, Omega=Omega, mode_index=i)
+                    #da = ((2 / 3) * dP_hat_1 / P_hat_0) ** (1 / 2)
 
                     amplitude_last = map_params['amplitude_last'][i]
                     E_tilde_last = map_params['E_tilde_last'][i]
                     E_bind_tilde = map_params['E_bind_tilde']
                     E_B_tilde_last = map_params['E_B_tilde_last'][i]
 
-                    if dP_hat_1 >= 0.01:
+                    if abs(dP_hat_1) >= 0.01:
 
                         enable_dt = True
 
                         # update map
-                        dE_tilde = np.abs(amplitude_last + da) ** 2 - np.abs(amplitude_last) ** 2
-                        EB0 = -kp.constants.G * m0 * m1 / (2 * a)
+                        #dE_tilde = np.abs(amplitude_last + da) ** 2 - np.abs(amplitude_last) ** 2
+                        EB0 = map_params['EB0']
+                        #P0 = map_params['P0']
                         dE_tilde = -dE_inf / EB0
                         E_tilde = E_tilde_last + dE_tilde
                         E_B_tilde = E_B_tilde_last - dE_tilde
@@ -190,8 +194,8 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
                             E_tilde_last = 1e-3 * E_bind_tilde
 
                         # new orbital period and amplitude
-                        P_hat_new = P_hat_0 * (-1 / E_B_tilde) ** (3 / 2)
-                        a_next = (amplitude_last + np.sqrt(dE_tilde+0j)) * np.exp(-complex(0, 1) * P_hat_new)
+                        #P_hat_new = P0 * (-1 / E_B_tilde) ** (3 / 2)
+                        a_next = (amplitude_last + np.sqrt(dE_tilde+0j)) * np.exp(-complex(0, 1) * sigma * P)
 
                         E_ratio = E_B_tilde_last / E_B_tilde
 
@@ -213,7 +217,7 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
                         map_params['E_B_tilde_last'][i] = E_B_tilde_last
                         map_params['dP'][i] = dP_hat_1
                         map_params['P'][i] = P_hat_0
-                        map_params['da'][i] = da
+                        #map_params['da'][i] = da
 
                         dt = P
                 if not enable_dt:
@@ -221,10 +225,10 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
                 return dt
 
             int_kwargs = {'atol': atol, 'rtol': rtol, 'mxstep': 1000000, 'hmin': 0.0000001, 'mxords': 16, 'mxordn': 12}
-            map_params = {'amplitude_last' : np.zeros(4), 'E_tilde_last' : np.zeros(4), 'E_B_tilde_last' : -1 * np.ones(4),
-                          'E_bind_tilde' : 2 * m1 * 1.5 / (radius1 * m0), 'dP' : np.zeros(4), 'P' : np.ones(4), 'da' : np.zeros(4)}
+            map_params = {'amplitude_last' : np.zeros(4, dtype=np.complex128), 'E_tilde_last' : np.zeros(4), 'E_B_tilde_last' : -1 * np.ones(4),
+                          'E_bind_tilde' : 2 * m1 * 1.5 / (radius1 * m0), 'dP' : np.zeros(4), 'P' : np.ones(4), 'da' : np.zeros(4), 'EB0' : -kp.constants.G * m0 * m1 / (2 * 1.5)}
 
-            time, sol, amps = integrate_callback(threebody_ode_vf_tides_modified, ics, time[0], time[-1],
+            time, sol, amps, dPs = integrate_callback(threebody_ode_vf_tides_modified, ics, time[0], time[-1],
                                            callback=callback,
                                            args=params,
                                            int_kwargs=int_kwargs,
@@ -232,7 +236,7 @@ def integrate_triple_system(ics, timemin, timemax, Nevals,
 
 
             with open('amplitudes.pickle', 'wb') as file:
-                pickle.dump(amps, file)
+                pickle.dump([amps, dPs], file)
 
         elif (version == 'full'):
             sol = integ.odeint(threebody_ode_vf_full_modified, ics, time,

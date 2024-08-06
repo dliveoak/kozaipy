@@ -21,12 +21,12 @@ if __name__ == "__main__":
                      type0='star', type1='planet',
                      g1=0, g2=360 * np.pi/180.0,
                      spin_rate0=2 * np.pi / 2.3, spin_rate1 = 2 * np.pi/0.417,
-                     pseudosynch1=True,
+                     pseudosynch1=False,
                      spinorbit_align0=False, spinorbit_align1=True,
                      R0=kp.constants.Rsun, R1=kp.constants.Rsun / 10,
-                     k2_0=0.014, k2_1=0.25, tv0=1e8, tv1=tv1, rg0=0.07, rg1=0.28)
+                     k2_0=0.014, k2_1=0.25, tv0=1e8, tv1=tv1, rg0=0.07, rg1=0.28, spin1=True)
 
-    sol = trip.integrate(timemin=0.0, timemax=1e7 * 365.25, Nevals=120000,
+    sol = trip.integrate(timemin=0.0, timemax=1e8 * 365.25, Nevals=120000,
                          octupole_potential=True,
                          short_range_forces_conservative=True,
                          short_range_forces_dissipative=True,
